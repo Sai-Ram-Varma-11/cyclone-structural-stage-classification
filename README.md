@@ -1,228 +1,150 @@
-# Cyclone Structural-Stage Classification System
+# Indian Cyclone Intensity Prediction System
 
-**SIH 2026 | Problem Statement: SIH26070**
+A Streamlit and machine-learning academic project for classifying the intensity grade of historical North Indian Ocean cyclone observations from the **Bay of Bengal (BOB)** and **Arabian Sea (ARB)**.
 
-A machine learning project that classifies historical cyclone observations into structural intensity grades using meteorological data.
+> **Important:** This project classifies the intensity associated with an observation. Experiment A uses the observed wind speed, which is closely related to the intensity grade. It is not a future cyclone-intensity forecasting model and is not an official IMD warning system.
 
-## Project Overview
-
-The system uses historical cyclone observations to train and evaluate two machine learning algorithms:
-
-- Decision Tree Classifier
-- Random Forest Classifier
-
-The project also provides an interactive Streamlit dashboard for dataset exploration, cyclone grade prediction, and model evaluation.
-
-**Note:** This implementation uses meteorological observations from the Stormtrack Python package. It does not currently use HURSAT-B1 satellite imagery or IBTrACS satellite-derived features.
-
-## Dataset
-
-The dataset is loaded using the Stormtrack Python package:
-
-```python
-import stormtrack as st
-
-data = st.load()
-df = data.observations
-```
-
-### Dataset information
-
-| Description | Value |
-|---|---:|
-| Original observations | 7,585 |
-| Original features | 19 |
-| Geographical basins | BOB, ARB, LAND |
-| Processed observations | 7,172 |
-| Unique cyclones in processed data | 387 |
-| Cyclone grades | 7 |
-
-The processed dataset includes observations from:
-
-- BOB – Bay of Bengal
-- ARB – Arabian Sea
-
-Land observations are excluded during preprocessing.
-
-### Model features
-
-The model uses the following six input features:
-
-| Feature | Description |
-|---|---|
-| year | Observation year |
-| month | Observation month |
-| lat | Cyclone latitude |
-| lon | Cyclone longitude |
-| pressure | Atmospheric pressure |
-| basin | Geographical cyclone basin |
-
-The target variable is `grade`.
-
-### Cyclone grades
-
-The dataset contains these grade labels:
-
-- D
-- DD
-- CS
-- SCS
-- VSCS
-- ESCS
-- SuCS
-
-These labels are retained from the source dataset.
-
-## Project Structure
+## 1. Project structure
 
 ```text
 cyclone-structural-stage-classification/
-│
 ├── app.py
-├── model.py
-├── preprocess.py
-├── inspect_dataset.py
-├── test_dataset.py
+├── train_model.py
 ├── requirements.txt
 ├── README.md
-│
-└── data/
-    ├── raw/
-    │   └── cyclone_dataset.csv
-    │
-    └── processed/
-        ├── cyclone_dataset.csv
-        ├── models.joblib
-        └── results.json
+├── data/
+│   └── indian_cyclone_cleaned_engineered.csv
+├── models/
+│   └── indian_cyclone_model.joblib     # created by training
+└── reports/
+    ├── evaluation_report.txt           # created by training
+    ├── evaluation_summary.json         # created by training
+    ├── model_comparison.csv             # created by training
+    ├── classification_report_*.csv
+    ├── confusion_matrix_*.csv
+    └── confusion_matrix_*.png
 ```
 
-## Machine Learning Models
+The supplied CSV is already placed in the required `data/` folder. Do not rename it unless you also update `DATA_FILE` in `train_model.py` and `app.py`.
 
-Two supervised classification algorithms are implemented:
+## 2. Dataset
 
-1. **Decision Tree Classifier** – A basic classification model.
-2. **Random Forest Classifier** – An ensemble model used as the primary prediction model.
+File: `data/indian_cyclone_cleaned_engineered.csv`
 
-The data is split by cyclone ID to prevent observations from the same cyclone appearing in both training and testing sets.
+The supplied dataset contains 6,764 observations and 14 columns before the training script's validation and duplicate checks.
 
-| Dataset | Observations |
-|---|---:|
-| Training | 5,322 |
-| Testing | 1,850 |
-| Training cyclones | 290 |
-| Testing cyclones | 97 |
+| Column | Meaning / use |
+|---|---|
+| `storm_id` | Cyclone identifier; used only for group-aware splitting |
+| `time` | Observation timestamp; used for audit and date coverage |
+| `year` | Year; audit only |
+| `basin` | BOB or ARB; categorical model feature |
+| `lat`, `lon` | Geographic coordinates |
+| `wind` | Observed wind speed |
+| `pressure` | Atmospheric pressure |
+| `pressure_drop` | Pressure-drop feature |
+| `month`, `hour` | Temporal features |
+| `day_of_year_sin`, `day_of_year_cos` | Cyclic day-of-year features |
+| `grade` | Target class |
 
-No cyclone appears in both sets.
+Target classes are retained as supplied: `D`, `DD`, `CS`, `SCS`, `VSCS`, `ESCS`, and `SuCS`.
 
-## Model Evaluation
+The training script does not create synthetic rows, change labels, or use `storm_id`, `time`, or `year` as predictive features. Missing numeric inputs are imputed inside each training fold. The CSV itself is not overwritten.
 
-### Random Forest results
+## 3. Machine-learning methodology
 
-| Metric | Score |
-|---|---:|
-| Accuracy | 58.0% |
-| Precision (macro) | 52.4% |
-| Recall (macro) | 52.9% |
-| F1-score (macro) | 51.6% |
+Five classifiers are compared:
 
-The model also generates:
+1. Random Forest
+2. Extra Trees
+3. Decision Tree
+4. Gradient Boosting
+5. HistGradientBoosting
 
+A shared preprocessing pipeline imputes numeric missing values using the training fold's median and encodes `basin` using one-hot encoding. Tree models use balanced class weights where supported. The two boosting models use inverse-frequency sample weights calculated from the current training fold only.
+
+### Leakage prevention
+
+- The split is group-aware and stratified by `grade`.
+- `storm_id` is used as the group identifier, not as an input feature.
+- All observations belonging to a cyclone remain in one partition.
+- Cross-validation also uses `StratifiedGroupKFold`.
+- Preprocessing is fitted inside each pipeline and therefore only sees the corresponding training fold.
+- The held-out test set is not used to select the model.
+
+### Two feature experiments
+
+**Experiment A – with wind:** Uses wind, pressure, pressure drop, location, basin, and engineered temporal features. This is the main current-observation intensity classifier.
+
+**Experiment B – without wind:** Repeats model comparison without the `wind` input. This is a reduced-feature experiment to measure how much signal remains without the most directly intensity-related measurement.
+
+The deployable model is selected from Experiment A using grouped cross-validation macro F1. Test-set results for both experiments are reported separately.
+
+## 4. Evaluation metrics
+
+The generated report includes:
+
+- Accuracy
+- Macro precision, recall, and F1
+- Weighted F1
+- Balanced accuracy
+- Per-class precision, recall, F1, and support
 - Confusion matrix
-- Per-grade precision, recall and F1-score
-- Prediction error analysis
-- Feature importance
+- Grouped cross-validation macro F1 for each candidate model
 
-The results indicate moderate classification performance. Some rare grades have limited observations, which affects their individual prediction performance.
+Macro F1 gives equal weight to each class, which is useful when categories are imbalanced. The rare `SuCS` category is represented by only a small number of distinct storms in this dataset, so its test metrics can be unstable. Interpret per-class results together with their support counts.
 
-## Streamlit Dashboard
+## 5. Install and run on Windows
 
-The interactive application provides three main sections:
-
-**1. Dashboard**
-- Dataset overview
-- Cyclone grade distribution
-- Dataset preview
-- Model information
-
-**2. Cyclone Prediction**
-- Enter meteorological observation details
-- Select cyclone basin
-- Predict cyclone grade
-- View prediction probabilities
-
-**3. Model Evaluation**
-- Decision Tree vs Random Forest comparison
-- Confusion matrix
-- Grade-wise performance
-- Prediction error analysis
-
-## Installation
-
-Python 3.10–3.13 compatibility should be checked against the installed package versions.
-
-Clone the repository:
+Open Command Prompt or PowerShell in this project folder.
 
 ```bash
-git clone https://github.com/Sai-Ram-Varma-11/cyclone-structural-stage-classification.git
-cd cyclone-structural-stage-classification
-```
-
-Create a virtual environment:
-
-```bash
-python -m venv venv
-```
-
-Activate it on Windows:
-
-```powershell
-.\venv\Scripts\Activate.ps1
-```
-
-Install dependencies:
-
-```bash
+py -m venv .venv
+.venv\Scripts\activate
+python -m pip install --upgrade pip
 pip install -r requirements.txt
-```
-
-## Run the Project
-
-Run the following commands in order:
-
-```bash
-python inspect_dataset.py
-python preprocess.py
-python model.py
+python train_model.py
 streamlit run app.py
 ```
 
-The Streamlit dashboard will open in your browser.
+Open the local URL printed by Streamlit, usually `http://localhost:8501`.
 
-The processed dataset and trained models are saved in `data/processed/`.
+Run `python train_model.py` again whenever you replace or update the dataset. The app loads the saved model and does not retrain on every launch.
 
-## Limitations
+## 6. Application pages
 
-- The current implementation uses meteorological observations, not satellite imagery.
-- Model performance is moderate and should not be interpreted as operational cyclone forecasting accuracy.
-- Rare cyclone grades have relatively few samples.
-- The system is an academic research prototype, not an official cyclone warning system.
+- **Home Dashboard:** dataset counts, basin split, and intensity distribution.
+- **Cyclone Prediction:** accepts basin, coordinates, wind, pressure, pressure drop, date, and hour.
+- **Model Performance:** displays the two feature experiments and model comparison.
+- **Dataset Analysis:** preview, missing values, basin cross-tab, wind/pressure distributions, and yearly counts.
+- **Indian Cyclone Map:** plots actual recorded coordinates and differentiates BOB and ARB observations.
 
-## Technologies Used
+## 7. Limitations and responsible use
 
-- Python
-- Pandas
-- NumPy
-- Scikit-learn
-- Streamlit
-- Joblib
-- Altair
+- The model is only as representative as the supplied historical dataset.
+- Wind is strongly related to the target intensity category. With-wind performance should not be presented as evidence of forecasting future intensity.
+- The small number of `SuCS` storms limits reliable generalization for that class.
+- A storm-grouped test split measures generalization to storms not represented in training, but does not guarantee future-year forecasting performance.
+- Prediction probabilities are intentionally not shown as confidence scores because probability calibration has not been validated.
+- The map displays recorded observation points, not reconstructed tracks.
+- This is an academic demonstration, not an operational meteorological product. Use official IMD alerts and advisories for safety decisions.
 
-## Author
+## 11. Viva-ready explanation
 
-**Sai Ram Varma**
+**What does the system predict?**  
+It predicts the cyclone intensity grade (`D` through `SuCS`) for a supplied set of cyclone observation features.
 
-GitHub: https://github.com/Sai-Ram-Varma-11
+**Why is `storm_id` not a feature?**  
+It identifies the cyclone. If records from the same cyclone appeared in both training and testing, the evaluation could become overly optimistic. It is therefore used only to keep each cyclone together during splitting.
 
----
+**Why compare with-wind and without-wind models?**  
+Wind speed is closely connected to intensity grade. The with-wind experiment evaluates classification when wind is known. The without-wind experiment checks how well other features distinguish the grades.
 
-Academic machine learning project – SIH 2026.
+**Does the project forecast a cyclone's future intensity?**  
+No. It classifies the intensity associated with the entered observation. Future forecasting requires a separate time-sequenced dataset design, where earlier observations predict a later observation.
+
+**Why use macro F1?**  
+It gives each grade equal importance, rather than allowing frequent classes to dominate the score.
+
+**Where are the results stored?**  
+The trained pipeline is saved in `models/indian_cyclone_model.joblib`; evaluation files are saved in `reports/`.

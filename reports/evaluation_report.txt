@@ -1,0 +1,31 @@
+INDIAN CYCLONE INTENSITY CLASSIFICATION - EVALUATION
+==========================================================
+Observations: 6750 | Unique storms: 381
+Train: 5401 records / 304 storms
+Test: 1349 records / 77 storms
+
+Experiment A - with wind (current intensity classification)
+Selected model: Random Forest
+{
+  "accuracy": 0.9747961452928094,
+  "precision_macro": 0.9826386725849353,
+  "recall_macro": 0.977371993021481,
+  "f1_macro": 0.9797669324006779,
+  "f1_weighted": 0.9746124667850798,
+  "balanced_accuracy": 0.977371993021481
+}
+
+Experiment B - without wind (reduced-feature comparison)
+Selected model: Gradient Boosting
+{
+  "accuracy": 0.8888065233506302,
+  "precision_macro": 0.9145980222145603,
+  "recall_macro": 0.9255241209470714,
+  "f1_macro": 0.9191883598317127,
+  "f1_weighted": 0.888044227773326,
+  "balanced_accuracy": 0.9255241209470714
+}
+
+Model selection is based on grouped cross-validation macro F1 on training data.
+The holdout test set is not used to select the model.
+This is not a future-intensity forecasting model.

@@ -1,0 +1,59 @@
+{
+  "dataset": {
+    "observations": 6750,
+    "storms": 381,
+    "bob_records": 4647,
+    "arb_records": 2103,
+    "first_year": 1982,
+    "last_year": 2026,
+    "train_records": 5401,
+    "test_records": 1349,
+    "train_storms": 304,
+    "test_storms": 77,
+    "missing_values": {
+      "storm_id": 0,
+      "time": 0,
+      "year": 0,
+      "basin": 0,
+      "lat": 0,
+      "lon": 0,
+      "wind": 0,
+      "pressure": 479,
+      "pressure_drop": 280,
+      "month": 0,
+      "hour": 0,
+      "day_of_year_sin": 0,
+      "day_of_year_cos": 0,
+      "grade": 0
+    },
+    "class_distribution": {
+      "D": 2328,
+      "CS": 1531,
+      "DD": 1399,
+      "SCS": 607,
+      "VSCS": 536,
+      "ESCS": 309,
+      "SuCS": 40
+    }
+  },
+  "experiment_a": {
+    "selected_model": "Random Forest",
+    "accuracy": 0.9747961452928094,
+    "precision_macro": 0.9826386725849353,
+    "recall_macro": 0.977371993021481,
+    "f1_macro": 0.9797669324006779,
+    "f1_weighted": 0.9746124667850798,
+    "balanced_accuracy": 0.977371993021481
+  },
+  "experiment_b": {
+    "selected_model": "Gradient Boosting",
+    "accuracy": 0.8888065233506302,
+    "precision_macro": 0.9145980222145603,
+    "recall_macro": 0.9255241209470714,
+    "f1_macro": 0.9191883598317127,
+    "f1_weighted": 0.888044227773326,
+    "balanced_accuracy": 0.9255241209470714
+  },
+  "holdout_note": "Storm-grouped stratified holdout; no storm_id appears in both train and test.",
+  "warning": "Experiment A classifies the observed/current intensity because wind is an input; it is not future forecasting."
+}
